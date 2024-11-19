@@ -26,7 +26,6 @@ import org.apache.paimon.utils.Preconditions;
 
 import javax.annotation.Nullable;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -67,25 +66,15 @@ public interface FileEntry {
         public final int bucket;
         public final int level;
         public final String fileName;
-        public final List<String> extraFiles;
-        @Nullable private final byte[] embeddedIndex;
 
         /* Cache the hash code for the string */
         private Integer hash;
 
-        public Identifier(
-                BinaryRow partition,
-                int bucket,
-                int level,
-                String fileName,
-                List<String> extraFiles,
-                @Nullable byte[] embeddedIndex) {
+        public Identifier(BinaryRow partition, int bucket, int level, String fileName) {
             this.partition = partition;
             this.bucket = bucket;
             this.level = level;
             this.fileName = fileName;
-            this.extraFiles = extraFiles;
-            this.embeddedIndex = embeddedIndex;
         }
 
         @Override
@@ -100,22 +89,13 @@ public interface FileEntry {
             return bucket == that.bucket
                     && level == that.level
                     && Objects.equals(partition, that.partition)
-                    && Objects.equals(fileName, that.fileName)
-                    && Objects.equals(extraFiles, that.extraFiles)
-                    && Objects.deepEquals(embeddedIndex, that.embeddedIndex);
+                    && Objects.equals(fileName, that.fileName);
         }
 
         @Override
         public int hashCode() {
             if (hash == null) {
-                hash =
-                        Objects.hash(
-                                partition,
-                                bucket,
-                                level,
-                                fileName,
-                                extraFiles,
-                                Arrays.hashCode(embeddedIndex));
+                hash = Objects.hash(partition, bucket, level, fileName);
             }
             return hash;
         }
@@ -130,10 +110,6 @@ public interface FileEntry {
                     + level
                     + ", fileName="
                     + fileName
-                    + ", extraFiles="
-                    + extraFiles
-                    + ", embeddedIndex="
-                    + Arrays.toString(embeddedIndex)
                     + '}';
         }
 
@@ -144,11 +120,7 @@ public interface FileEntry {
                     + ", level "
                     + level
                     + ", file "
-                    + fileName
-                    + ", extraFiles "
-                    + extraFiles
-                    + ", embeddedIndex "
-                    + Arrays.toString(embeddedIndex);
+                    + fileName;
         }
     }
 

@@ -104,7 +104,7 @@ public class SimpleFileEntry implements FileEntry {
 
     @Override
     public Identifier identifier() {
-        return new Identifier(partition, bucket, level, fileName, extraFiles, embeddedIndex);
+        return new Identifier(partition, bucket, level, fileName);
     }
 
     @Override

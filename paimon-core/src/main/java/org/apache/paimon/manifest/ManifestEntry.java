@@ -112,13 +112,7 @@ public class ManifestEntry implements FileEntry {
 
     @Override
     public Identifier identifier() {
-        return new Identifier(
-                partition,
-                bucket,
-                file.level(),
-                file.fileName(),
-                file.extraFiles(),
-                file.embeddedIndex());
+        return new Identifier(partition, bucket, file.level(), file.fileName());
     }
 
     public ManifestEntry copyWithoutStats() {

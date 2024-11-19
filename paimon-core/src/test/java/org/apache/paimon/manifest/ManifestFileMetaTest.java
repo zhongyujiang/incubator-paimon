@@ -570,7 +570,7 @@ public class ManifestFileMetaTest extends ManifestFileMetaTestBase {
                                 identifier.fileName,
                                 identifier.partition.getInt(0),
                                 identifier.level,
-                                identifier.extraFiles,
+                                Lists.newArrayList("extra-" + i),
                                 new byte[] {1, 2, 3}));
                 manifestEntrySet.remove(identifier);
                 deleteManifestEntrySet.add(identifier);
