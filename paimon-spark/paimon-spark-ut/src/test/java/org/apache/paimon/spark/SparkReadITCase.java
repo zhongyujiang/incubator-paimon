@@ -52,6 +52,103 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public class SparkReadITCase extends SparkReadTestBase {
 
     @Test
+    public void testAggRetractCompactionIssue() {
+        sql(
+                "create table merge_map("
+                        + "id bigint not null, "
+                        + "row_kind string, "
+                        + "foo map<string, string>) "
+                        + "tblproperties"
+                        + "('primary-key'='id', "
+                        + "'merge-engine' = 'aggregation', 'bucket'='1', "
+                        + "'target-file-size'='2kb',"
+                        + "'fields.foo.aggregate-function' = 'merge_map', 'rowkind.field'='row_kind')");
+
+        sql(
+                "insert into merge_map values"
+                        + "(1, '+I', map('bbb', 'BBB', 'ccc', 'CCC')), "
+                        + "(2, '+I', map('bbb', 'BBB')),"
+                        + "(3, '+I', map('bbb', 'BBB', 'ccc', 'CCC')),"
+                        + "(4, '+I', map('bbb', 'BBB'))");
+
+        // L5
+        sql("call sys.compact(table => 'default.merge_map')");
+        printTable("`merge_map$files`");
+
+        sql("insert into merge_map values(11, '+I', map('bbb', 'BBB'))");
+        sql("insert into merge_map values(12, '+I', map('bbb', 'BBB'))");
+        sql("insert into merge_map values(13, '+I', map('bbb', 'BBB'))");
+        sql("insert into merge_map values(14, '+I', map('bbb', 'BBB'))");
+
+        // L4
+        sql("call sys.compact(table => 'default.merge_map', compact_strategy => 'minor')");
+        printTable("`merge_map$files`");
+
+        sql("insert into merge_map values(2, '+I', map('bbb', 'BBB'))");
+        sql("insert into merge_map values(2, '-D', map('bbb', 'BBB'))"); // retract
+        sql("insert into merge_map values(3, '+I', map('bbb', 'BBB'))");
+        sql("insert into merge_map values(4, '+I', map('bbb', 'BBB'))");
+
+        // compaction will merge data files in L0 and L4
+        sql("call sys.compact(table => 'default.merge_map', compact_strategy => 'minor')");
+
+        printTable("`merge_map$files`");
+
+        printTable("`merge_map`");
+        /*
+        +---+--------+------------------------+
+        |id |row_kind|foo                     |
+        +---+--------+------------------------+
+        |1  |+I      |{bbb -> BBB, ccc -> CCC}|
+        |2  |+I      |{bbb -> BBB}            |     -- retract failed
+        |3  |+I      |{bbb -> BBB, ccc -> CCC}|
+        |4  |+I      |{bbb -> BBB}            |
+        |11 |+I      |{bbb -> BBB}            |
+        |12 |+I      |{bbb -> BBB}            |
+        |13 |+I      |{bbb -> BBB}            |
+        |14 |+I      |{bbb -> BBB}            |
+        +---+--------+------------------------+
+                * */
+    }
+
+    @Test
+    public void testAggRetractMergeIssue() {
+        sql(
+                "create table merge_map("
+                        + "id bigint not null, "
+                        + "row_kind string, "
+                        + "foo map<string, string>) "
+                        + "tblproperties"
+                        + "('primary-key'='id', "
+                        + "'merge-engine' = 'aggregation', 'bucket'='1', "
+                        + "'fields.foo.aggregate-function' = 'merge_map', 'rowkind.field'='row_kind')");
+        sql("insert into merge_map values (1, '+I', map('bbb', 'BBB', 'ccc', 'CCC'))");
+        sql(
+                "insert into merge_map values(1, '-D', map('bbb', null)), (1, '-D', map('ddd', null))"); // retract
+        // AggregateMergeFunction will merge two records into +I (1, null, map())
+        // see
+        // https://github.com/apache/paimon/blob/9339ee6339e3ff5e1c336c983776415db21b42ce/paimon-core/src/main/java/org/apache/paimon/mergetree/compact/aggregate/AggregateMergeFunction.java#L93
+        // which fails the retraction
+
+        printTable("`merge_map`");
+        /*
+        +---+--------+------------------------+
+        |id |row_kind|foo                     |
+        +---+--------+------------------------+
+        |1  |+I      |{bbb -> BBB, ccc -> CCC}|
+        +---+--------+------------------------+
+                * */
+    }
+
+    private void sql(String sql, String... args) {
+        spark.sql(String.format(sql, args));
+    }
+
+    private void printTable(String table) {
+        spark.sql(String.format("select * from %s", table)).show(false);
+    }
+
+    @Test
     public void testNormal() {
         innerTestSimpleType(spark.table("t1"));
 
