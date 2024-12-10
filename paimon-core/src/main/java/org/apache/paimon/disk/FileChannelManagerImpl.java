@@ -45,7 +45,9 @@ public class FileChannelManagerImpl implements FileChannelManager {
     private static final Logger LOG = LoggerFactory.getLogger(FileChannelManagerImpl.class);
 
     /** The temporary directories for files. */
-    private final File[] paths;
+    private final String[] tempDirs;
+
+    private final String prefix;
 
     /** A random number generator for the anonymous Channel IDs. */
     private final Random random;
@@ -53,15 +55,16 @@ public class FileChannelManagerImpl implements FileChannelManager {
     /** The number of the next path to use. */
     private final AtomicLong nextPath = new AtomicLong(0);
 
+    /** The temporary directories for files. */
+    private volatile File[] lazyPathSet;
+
     public FileChannelManagerImpl(String[] tempDirs, String prefix) {
         checkNotNull(tempDirs, "The temporary directories must not be null.");
         checkArgument(tempDirs.length > 0, "The temporary directories must not be empty.");
 
+        this.tempDirs = tempDirs;
+        this.prefix = prefix;
         this.random = new Random();
-
-        // Creates directories after registering shutdown hook to ensure the directories can be
-        // removed if required.
-        this.paths = createFiles(tempDirs, prefix);
     }
 
     private static File[] createFiles(String[] tempDirs, String prefix) {
@@ -93,33 +96,57 @@ public class FileChannelManagerImpl implements FileChannelManager {
         return filesList.toArray(new File[0]);
     }
 
+    private File[] lazyPathSet() {
+        if (lazyPathSet == null) {
+            synchronized (FileChannelManager.class) {
+                if (lazyPathSet == null) {
+                    this.lazyPathSet = createFiles(tempDirs, prefix);
+
+                    if (LOG.isInfoEnabled()) {
+                        LOG.info(
+                                "Created directories:\n\t{}",
+                                Arrays.stream(lazyPathSet)
+                                        .map(File::getAbsolutePath)
+                                        .collect(Collectors.joining("\n\t")));
+                    }
+                }
+            }
+        }
+
+        return lazyPathSet;
+    }
+
     @Override
     public ID createChannel() {
-        int num = (int) (nextPath.getAndIncrement() % paths.length);
-        return new ID(paths[num], num, random);
+        int num = (int) (nextPath.getAndIncrement() % lazyPathSet().length);
+        return new ID(lazyPathSet()[num], num, random);
     }
 
     @Override
     public ID createChannel(String prefix) {
-        int num = (int) (nextPath.getAndIncrement() % paths.length);
-        return new ID(paths[num], num, prefix, random);
+        int num = (int) (nextPath.getAndIncrement() % lazyPathSet().length);
+        return new ID(lazyPathSet()[num], num, prefix, random);
     }
 
     @Override
     public Enumerator createChannelEnumerator() {
-        return new Enumerator(paths, random);
+        return new Enumerator(lazyPathSet(), random);
     }
 
     @Override
     public File[] getPaths() {
-        return Arrays.copyOf(paths, paths.length);
+        return Arrays.copyOf(lazyPathSet(), lazyPathSet().length);
     }
 
     /** Remove all the temp directories. */
     @Override
     public void close() throws Exception {
+        if (lazyPathSet == null) {
+            return;
+        }
+
         IOUtils.closeAll(
-                Arrays.stream(paths)
+                Arrays.stream(lazyPathSet)
                         .filter(File::exists)
                         .map(this::getFileCloser)
                         .collect(Collectors.toList()));
