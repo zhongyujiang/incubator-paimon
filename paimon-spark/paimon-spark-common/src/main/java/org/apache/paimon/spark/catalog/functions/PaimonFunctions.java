@@ -43,6 +43,7 @@ public class PaimonFunctions {
     private static final Map<String, UnboundFunction> FUNCTIONS =
             ImmutableMap.of(
                     "bucket", new BucketFunction(),
+                    "generic_bucket", new BucketFunction.GenericBucketFunction(),
                     "max_pt", new MaxPtFunction());
 
     private static final List<String> FUNCTION_NAMES = ImmutableList.copyOf(FUNCTIONS.keySet());

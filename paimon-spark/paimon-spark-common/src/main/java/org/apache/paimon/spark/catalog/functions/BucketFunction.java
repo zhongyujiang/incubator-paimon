@@ -68,6 +68,31 @@ public class BucketFunction implements UnboundFunction {
     private static final int NUM_BUCKETS_ORDINAL = 0;
     private static final int SPARK_TIMESTAMP_PRECISION = 6;
 
+    /** Hello. */
+    public static class GenericBucketFunction implements UnboundFunction {
+
+        @Override
+        public BoundFunction bind(StructType structType) {
+            StructField[] fields = structType.fields();
+            DataType[] bucketKeyTypes = new DataType[fields.length - 1];
+            for (int i = 1; i < fields.length; i++) {
+                bucketKeyTypes[i - 1] = fields[i].dataType();
+            }
+
+            return new BucketGeneric(bucketKeyTypes);
+        }
+
+        @Override
+        public String description() {
+            return "";
+        }
+
+        @Override
+        public String name() {
+            return "generic_bucket";
+        }
+    }
+
     private static final Map<String, Class<? extends BucketGeneric>> BUCKET_FUNCTIONS;
 
     static {
