@@ -430,6 +430,11 @@ public class SparkWriteITCase {
         spark.conf().unset("spark.paimon.file.suffix.include.compression");
     }
 
+    @Test
+    public void testExecute() {
+        throw new UnsupportedOperationException("HHH");
+    }
+
     protected static FileStoreTable getTable(String tableName) {
         return FileStoreTableFactory.create(
                 LocalFileIO.create(),
