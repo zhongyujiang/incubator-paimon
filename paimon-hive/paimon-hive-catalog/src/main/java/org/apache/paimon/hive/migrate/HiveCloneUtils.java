@@ -18,6 +18,7 @@
 
 package org.apache.paimon.hive.migrate;
 
+import org.apache.hadoop.hive.metastore.HiveMetaStoreClient;
 import org.apache.paimon.catalog.Identifier;
 import org.apache.paimon.data.BinaryRow;
 import org.apache.paimon.data.BinaryWriter;
@@ -151,6 +152,9 @@ public class HiveCloneUtils {
         IMetaStoreClient client = hiveCatalog.getHmsClient();
         Table sourceTable =
                 client.getTable(identifier.getDatabaseName(), identifier.getTableName());
+        System.out.println("Cloned table location: " + sourceTable.getSd().getLocation());
+        System.out.println(hiveCatalog.warehouse());
+        // hive.metastore.warehouse.dir -> file:/var/folders/2r/v_2n6mbj41v7q14m8f3j9q4w0000gn/T/hive5395677131174280998
         List<Partition> partitions =
                 client.listPartitions(
                         identifier.getDatabaseName(), identifier.getTableName(), Short.MAX_VALUE);

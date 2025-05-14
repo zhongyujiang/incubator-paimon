@@ -116,10 +116,16 @@ public class ListCloneFilesFunction
                         table.schema().logicalPartitionType(),
                         table.coreOptions().partitionDefaultName(),
                         predicate);
+//        System.out.println("Listed files");
         for (HivePartitionFiles partitionFiles : allPartitions) {
+//            System.out.println(partitionFiles.paths().stream().map(path -> path.toString().split("hivetable")[1]));
             CloneFileInfo.fromHive(tuple.f1, partitionFiles).forEach(collector::collect);
         }
     }
+
+    // [file:/var/folders/2r/v_2n6mbj41v7q14m8f3j9q4w0000gn/T/hive2759669711543013941/hivetable/id2=0/id3=0/part-23e06c42-ce4d-4107-b4c9-86a09ee25841-task-0-file-0]
+
+    // [file:/var/folders/2r/v_2n6mbj41v7q14m8f3j9q4w0000gn/T/hive4390104057823010601/hivetable/id2=0/id3=0/part-7d8bb655-80d7-4bc2-93d2-bf228799d310-task-0-file-0]
 
     private void checkCompatible(Schema sourceSchema, FileStoreTable existedTable) {
         Schema existedSchema = existedTable.schema().toSchema();

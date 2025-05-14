@@ -88,6 +88,7 @@ public class CloneAction extends ActionBase {
 
     @Override
     public void build() throws Exception {
+        System.out.println("cloning");
         // list source tables
         DataStream<Tuple2<Identifier, Identifier>> source =
                 CloneUtils.buildSource(

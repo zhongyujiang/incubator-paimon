@@ -37,6 +37,7 @@ import org.apache.flink.types.Row;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -108,6 +109,9 @@ public class CloneActionITCase extends ActionITCaseBase {
                         "warehouse=" + warehouse)
                 .run();
 
+        // file:/var/folders/2r/v_2n6mbj41v7q14m8f3j9q4w0000gn/T/hive5689692426113961033
+        // /var/folders/2r/v_2n6mbj41v7q14m8f3j9q4w0000gn/T/hive5689692426113961033
+
         List<Row> r2 =
                 ImmutableList.copyOf(tEnv.executeSql("SELECT * FROM test.test_table").collect());
         Assertions.assertThatList(r1).containsExactlyInAnyOrderElementsOf(r2);
@@ -121,7 +125,7 @@ public class CloneActionITCase extends ActionITCaseBase {
         assertThat(new Path(files.get(0).getField(0).toString()).getName()).startsWith("data-");
     }
 
-    @Test
+    @RepeatedTest(20)
     public void testMigrateOnePartitionedTable() throws Exception {
         testMigrateOnePartitionedTableImpl(false);
     }
@@ -132,7 +136,7 @@ public class CloneActionITCase extends ActionITCaseBase {
     }
 
     public void testMigrateOnePartitionedTableImpl(boolean specificFilter) throws Exception {
-        String format = randomFormat();
+        String format = "avro";
 
         TableEnvironment tEnv = tableEnvironmentBuilder().batchMode().build();
         tEnv.executeSql("CREATE CATALOG HIVE WITH ('type'='hive')");

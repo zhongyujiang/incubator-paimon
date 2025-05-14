@@ -38,6 +38,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.apache.paimon.flink.FlinkCatalogFactory.createPaimonCatalog;
 
@@ -76,9 +77,18 @@ public class CommitTableOperator extends AbstractStreamOperator<Long>
 
     @Override
     public void endInput() throws Exception {
+        StringBuilder sb = new StringBuilder();
+        sb.append("committing");
+
         try (Catalog catalog = createPaimonCatalog(Options.fromMap(catalogConfig))) {
             for (Map.Entry<Identifier, Map<BinaryRow, List<DataFileMeta>>> entry :
                     files.entrySet()) {
+                sb.append(entry.getKey());
+                Map<BinaryRow, List<DataFileMeta>> value = entry.getValue();
+                for (List<DataFileMeta> dataFileMetas : value.values()) {
+                    sb.append(dataFileMetas.stream().map(f -> f.fileName()).collect(Collectors.toList()));
+                }
+
                 List<CommitMessage> commitMessages = new ArrayList<>();
                 for (Map.Entry<BinaryRow, List<DataFileMeta>> listEntry :
                         entry.getValue().entrySet()) {
@@ -94,5 +104,7 @@ public class CommitTableOperator extends AbstractStreamOperator<Long>
                 }
             }
         }
+
+//        System.out.println(sb.toString());
     }
 }

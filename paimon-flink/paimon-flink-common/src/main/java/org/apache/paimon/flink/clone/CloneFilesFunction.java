@@ -70,6 +70,8 @@ public class CloneFilesFunction extends CloneProcessFunction<CloneFileInfo, Data
 
         // copy files
         Path targetFilePath = pathFactory(identifier, partition).newPathFromExtension("." + format);
+//        System.out.println("Cloned file: " + path.toString().split("hivetable")[1]);
+//        System.out.println("Target file: " + targetFilePath.toString());
         IOUtils.copyBytes(
                 sourceFileIO.newInputStream(path),
                 targetTable.fileIO().newOutputStream(targetFilePath, false));
