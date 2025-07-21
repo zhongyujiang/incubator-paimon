@@ -21,7 +21,7 @@ package org.apache.paimon.spark
 import org.apache.paimon.spark.sources.PaimonSourceOffset
 
 import org.apache.spark.sql.Row
-import org.apache.spark.sql.streaming.{StreamingQueryException, StreamTest, Trigger}
+import org.apache.spark.sql.streaming.{StreamingQuery, StreamingQueryException, StreamTest, Trigger}
 import org.junit.jupiter.api.Assertions
 
 import java.util.concurrent.TimeUnit

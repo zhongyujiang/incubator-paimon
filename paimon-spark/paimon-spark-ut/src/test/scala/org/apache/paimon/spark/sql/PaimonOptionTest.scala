@@ -31,17 +31,17 @@ class PaimonOptionTest extends PaimonSparkTestBase {
   import testImplicits._
 
   test("Paimon Option: create table with sql conf") {
-    withSparkSQLConf("spark.paimon.scan.snapshot-id" -> "2") {
+    withSparkSQLConf("spark.paimon.foo" -> "bar") {
       sql("CREATE TABLE T (id INT)")
       val table = loadTable("T")
       // check options in schema file directly
       val fileStoreTable = FileStoreTableFactory.create(table.fileIO(), table.location())
-      Assertions.assertNull(fileStoreTable.options().get("scan.snapshot-id"))
+      Assertions.assertNull(fileStoreTable.options().get("foo"))
     }
   }
 
   test("Paimon Option: create table by dataframe with sql conf") {
-    withSparkSQLConf("spark.paimon.scan.snapshot-id" -> "2") {
+    withSparkSQLConf("spark.paimon.foo" -> "bar") {
       Seq((1L, "x1"), (2L, "x2"))
         .toDF("a", "b")
         .write
@@ -51,7 +51,7 @@ class PaimonOptionTest extends PaimonSparkTestBase {
       val table = loadTable("T")
       // check options in schema file directly
       val fileStoreTable = FileStoreTableFactory.create(table.fileIO(), table.location())
-      Assertions.assertNull(fileStoreTable.options().get("scan.snapshot-id"))
+      Assertions.assertNull(fileStoreTable.options().get("foo"))
     }
   }
 

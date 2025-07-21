@@ -496,6 +496,16 @@ abstract class AbstractFileStoreTable implements FileStoreTable {
             return Optional.empty();
         }
         return Optional.of(schemaManager().schema(snapshot.schemaId()).copy(options.toMap()));
+
+        //        Optional<Snapshot> snapshot =
+        //                TimeTravelUtil.tryTravelToSnapshot(options, snapshotManager(),
+        // tagManager());
+        //
+        //        return snapshot.isPresent()
+        //                ? Optional.of(
+        //
+        // schemaManager().schema(snapshot.get().schemaId()).copy(options.toMap()))
+        //                : Optional.empty();
     }
 
     @Override
