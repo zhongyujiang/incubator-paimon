@@ -29,7 +29,7 @@ on:
 
 env:
   JDK_VERSION: 11
-  MAVEN_OPTS: -Dmaven.wagon.httpconnectionManager.ttlSeconds=30 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true
+  MAVEN_OPTS: -Dmaven.wagon.httpconnectionManager.ttlSeconds=30 -Dmaven.wagon.http.retryHandler.requestSentEnabled=true -Dmaven.repo.local=${{ runner.temp }}/m2-repo
 
 jobs:
   build:
