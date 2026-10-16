@@ -22,7 +22,10 @@ import org.apache.paimon.CoreOptions;
 import org.apache.paimon.Snapshot;
 import org.apache.paimon.catalog.Identifier;
 import org.apache.paimon.data.BinaryString;
+import org.apache.paimon.data.GenericMap;
 import org.apache.paimon.data.GenericRow;
+import org.apache.paimon.data.InternalArray;
+import org.apache.paimon.data.InternalMap;
 import org.apache.paimon.data.InternalRow;
 import org.apache.paimon.data.Timestamp;
 import org.apache.paimon.data.serializer.InternalRowSerializer;
@@ -41,6 +44,8 @@ import org.apache.paimon.table.FileStoreTableFactory;
 import org.apache.paimon.table.TableTestBase;
 import org.apache.paimon.table.source.ReadBuilder;
 import org.apache.paimon.types.DataTypes;
+import org.apache.paimon.types.MapType;
+import org.apache.paimon.types.RowType;
 import org.apache.paimon.utils.SnapshotManager;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -52,7 +57,11 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 import static org.apache.paimon.SnapshotTest.newSnapshotManager;
 import static org.apache.paimon.catalog.Identifier.SYSTEM_TABLE_SPLITTER;
@@ -78,6 +87,9 @@ public class SnapshotsTableTest extends TableTestBase {
                         .primaryKey("pk", "pt")
                         .option(CoreOptions.CHANGELOG_PRODUCER.key(), "input")
                         .option(CoreOptions.BUCKET.key(), "2")
+                        // make each commit record the max sequence number in snapshot
+                        // properties, so the properties column is not always null
+                        .option(CoreOptions.WRITE_SEQUENCE_NUMBER_INIT_MODE.key(), "snapshot")
                         .build();
         snapshotManager = newSnapshotManager(fileIO, tablePath);
         TableSchema tableSchema =
@@ -98,9 +110,8 @@ public class SnapshotsTableTest extends TableTestBase {
 
     @Test
     public void testReadSnapshotsFromLatest() throws Exception {
-        List<InternalRow> expectedRow = getExpectedResult(new long[] {1, 2});
-        List<InternalRow> result = read(snapshotsTable);
-        assertThat(result).containsExactlyInAnyOrderElementsOf(expectedRow);
+        List<String> expected = toStrings(getExpectedResult(new long[] {1, 2}));
+        assertThat(toStrings(read(snapshotsTable))).containsExactlyInAnyOrderElementsOf(expected);
     }
 
     @Test
@@ -119,7 +130,8 @@ public class SnapshotsTableTest extends TableTestBase {
                 .createReader(readBuilder.newScan().plan())
                 .forEachRemaining(row -> result.add(serializer.copy(row)));
 
-        assertThat(result).containsExactlyInAnyOrderElementsOf(getExpectedResult(new long[] {1}));
+        assertThat(toStrings(result))
+                .containsExactlyInAnyOrderElementsOf(toStrings(getExpectedResult(new long[] {1})));
     }
 
     @Test
@@ -169,8 +181,8 @@ public class SnapshotsTableTest extends TableTestBase {
                 .expire();
         assertThat(snapshotManager.earliestSnapshotId()).isEqualTo(2L);
         assertThat(readWithFilter(builder.lessOrEqual(snapshotIdIdx, 1L))).isEmpty();
-        assertThat(readWithFilter(builder.lessOrEqual(snapshotIdIdx, 2L)))
-                .containsExactlyElementsOf(getExpectedResult(new long[] {2}));
+        assertThat(toStrings(readWithFilter(builder.lessOrEqual(snapshotIdIdx, 2L))))
+                .containsExactlyElementsOf(toStrings(getExpectedResult(new long[] {2})));
     }
 
     private List<InternalRow> readWithFilter(Predicate predicate) throws Exception {
@@ -210,9 +222,62 @@ public class SnapshotsTableTest extends TableTestBase {
                             snapshot.operation() == null
                                     ? null
                                     : BinaryString.fromString(snapshot.operation().toString()),
-                            BinaryString.fromString(snapshot.writerVersion())));
+                            BinaryString.fromString(snapshot.writerVersion()),
+                            snapshot.properties() == null
+                                    ? null
+                                    : toPropertiesMap(snapshot.properties())));
         }
 
         return expectedRow;
+    }
+
+    private static GenericMap toPropertiesMap(Map<String, String> properties) {
+        Map<BinaryString, BinaryString> map = new LinkedHashMap<>();
+        for (Map.Entry<String, String> entry : properties.entrySet()) {
+            map.put(
+                    BinaryString.fromString(entry.getKey()),
+                    BinaryString.fromString(entry.getValue()));
+        }
+        return new GenericMap(map);
+    }
+
+    /**
+     * Rows are compared by their string form because the read path may replace a {@link
+     * org.apache.paimon.data.GenericMap} with a {@link org.apache.paimon.data.BinaryMap}, which
+     * does not implement content equality.
+     */
+    private static List<String> toStrings(List<InternalRow> rows) {
+        return rows.stream().map(SnapshotsTableTest::rowToString).collect(Collectors.toList());
+    }
+
+    private static String rowToString(InternalRow row) {
+        RowType rowType = SnapshotsTable.TABLE_TYPE;
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < rowType.getFieldCount(); i++) {
+            if (i > 0) {
+                sb.append('|');
+            }
+            if (row.isNullAt(i)) {
+                sb.append("null");
+            } else if (rowType.getTypeAt(i) instanceof MapType) {
+                sb.append(mapToString(row.getMap(i)));
+            } else {
+                sb.append(
+                        InternalRow.createFieldGetter(rowType.getTypeAt(i), i).getFieldOrNull(row));
+            }
+        }
+        return sb.toString();
+    }
+
+    private static String mapToString(InternalMap map) {
+        Map<String, String> javaMap = new TreeMap<>();
+        InternalArray keys = map.keyArray();
+        InternalArray values = map.valueArray();
+        for (int i = 0; i < keys.size(); i++) {
+            javaMap.put(
+                    keys.getString(i).toString(),
+                    values.isNullAt(i) ? null : values.getString(i).toString());
+        }
+        return javaMap.toString();
     }
 }

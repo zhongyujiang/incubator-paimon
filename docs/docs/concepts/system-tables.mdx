@@ -74,9 +74,10 @@ ORDER BY snapshot_id DESC;
 ```
 
 Additional columns include manifest-list names, `changelog_record_count`, `watermark`,
-`next_row_id`, `operation`, and `writer_version`. Optional metadata can be `NULL`, depending on
-the writer and enabled features. See the [Snapshot specification](./spec/snapshot) for the meaning
-of these fields.
+`next_row_id`, `operation`, `writer_version`, and `properties` (a `MAP<STRING, STRING>` of
+additional snapshot properties, queryable with `properties['key']`). Optional metadata can be
+`NULL`, depending on the writer and enabled features. See the
+[Snapshot specification](./spec/snapshot) for the meaning of these fields.
 
 `total_record_count` and `delta_record_count` are unmerged counts calculated from data files, not
 logical row counts. All dedicated data files contribute to these values. For example, appending `N`

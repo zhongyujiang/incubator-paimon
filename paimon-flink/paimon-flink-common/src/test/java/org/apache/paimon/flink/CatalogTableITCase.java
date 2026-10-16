@@ -150,6 +150,31 @@ public class CatalogTableITCase extends CatalogITCaseBase {
     }
 
     @Test
+    public void testSnapshotsTableProperties() throws Exception {
+        sql(
+                "CREATE TABLE T_PROPERTIES (a INT, b INT) WITH ('write.sequence-number-init-mode' = 'snapshot')");
+        sql("INSERT INTO T_PROPERTIES VALUES (1, 2)");
+        sql("INSERT INTO T_PROPERTIES VALUES (3, 4)");
+
+        List<Row> result = sql("SELECT snapshot_id, properties FROM T_PROPERTIES$snapshots");
+        assertThat(result).hasSize(2);
+        assertThat(result)
+                .allSatisfy(
+                        row -> {
+                            @SuppressWarnings("unchecked")
+                            Map<String, String> properties = (Map<String, String>) row.getField(1);
+                            assertThat(properties)
+                                    .containsKey("sequence.generation.max-sequence-number");
+                        });
+
+        result =
+                sql(
+                        "SELECT snapshot_id FROM T_PROPERTIES$snapshots "
+                                + "WHERE properties['sequence.generation.max-sequence-number'] IS NOT NULL");
+        assertThat(result).containsExactly(Row.of(1L), Row.of(2L));
+    }
+
+    @Test
     public void testSnapshotsTableWithRecordCount() throws Exception {
         sql("CREATE TABLE T (a INT, b INT)");
         sql("INSERT INTO T VALUES (1, 2)");
