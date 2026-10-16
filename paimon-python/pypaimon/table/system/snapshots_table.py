@@ -21,7 +21,7 @@ from typing import List, Optional
 
 import pyarrow
 
-from pypaimon.schema.data_types import AtomicType, DataField, RowType
+from pypaimon.schema.data_types import AtomicType, DataField, MapType, RowType
 from pypaimon.table.system.system_table import SystemTable
 
 
@@ -42,10 +42,18 @@ TABLE_TYPE = RowType(False, [
     DataField(13, "next_row_id", AtomicType("BIGINT", nullable=True)),
     # Keep the field ID aligned with Java; ID 14 is reserved for operation.
     DataField(15, "writer_version", AtomicType("STRING", nullable=True)),
+    DataField(
+        16,
+        "properties",
+        MapType(
+            True,
+            AtomicType("STRING", nullable=False),
+            AtomicType("STRING", nullable=True))),
 ])
 
 
 _TIMESTAMP_TYPE = pyarrow.timestamp("ms")
+_PROPERTIES_TYPE = pyarrow.map_(pyarrow.string(), pyarrow.string())
 
 
 class SnapshotsTable(SystemTable):
@@ -78,6 +86,7 @@ class SnapshotsTable(SystemTable):
         watermarks: List[Optional[int]] = []
         next_row_ids: List[Optional[int]] = []
         writer_versions: List[Optional[str]] = []
+        properties: List[Optional[dict]] = []
 
         for snap in snapshots:
             snapshot_ids.append(int(snap.id))
@@ -103,6 +112,7 @@ class SnapshotsTable(SystemTable):
             next_row_ids.append(
                 None if snap.next_row_id is None else int(snap.next_row_id))
             writer_versions.append(snap.writer_version)
+            properties.append(snap.properties)
 
         return pyarrow.table({
             "snapshot_id": pyarrow.array(snapshot_ids, type=pyarrow.int64()),
@@ -127,4 +137,5 @@ class SnapshotsTable(SystemTable):
             "watermark": pyarrow.array(watermarks, type=pyarrow.int64()),
             "next_row_id": pyarrow.array(next_row_ids, type=pyarrow.int64()),
             "writer_version": pyarrow.array(writer_versions, type=pyarrow.string()),
+            "properties": pyarrow.array(properties, type=_PROPERTIES_TYPE),
         })

@@ -58,6 +58,7 @@ def _seed_two_snapshots(table):
         time_millis=_T0,
         writer_version="python-2.1.dev-commit-one",
         watermark=7,
+        properties={"sequence.generation.max-sequence-number": "0"},
     )
     snapshot_two = Snapshot(
         version=3,
@@ -117,6 +118,7 @@ class SnapshotsTableTest(unittest.TestCase):
             ("total_record_count", True), ("delta_record_count", True),
             ("changelog_record_count", True), ("watermark", True),
             ("next_row_id", True), ("writer_version", True),
+            ("properties", True),
         ]
         self.assertEqual([n for n, _ in expected],
                          [f.name for f in row_type.fields])
@@ -156,6 +158,10 @@ class SnapshotsTableTest(unittest.TestCase):
                          arrow_table.column("next_row_id").to_pylist())
         self.assertEqual(["python-2.1.dev-commit-one", None],
                          arrow_table.column("writer_version").to_pylist())
+        # Snapshot one carries properties; snapshot two has none.
+        self.assertEqual(
+            [[("sequence.generation.max-sequence-number", "0")], None],
+            arrow_table.column("properties").to_pylist())
 
         times = arrow_table.column("commit_time").to_pylist()
         self.assertIsInstance(times[0], datetime.datetime)
